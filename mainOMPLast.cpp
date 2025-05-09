@@ -1,12 +1,15 @@
-﻿#include <iostream>
+#include <iostream>
 #include <vector>
 #include <algorithm>   // rotate, fill
 #include <cmath>       // sqrt, ceil, floor
 #include <iomanip>     // setw
 #include <chrono>      // system_clock
+#include <omp.h>
 //#include <random>      // mt19937, uniform_int_distribution
 
 using namespace std;
+
+#define PRINT_MAT 0
 
 // A Block is a blockSize x blockSize matrix of ints
 using Block = vector<vector<int>>;
@@ -83,6 +86,8 @@ vector<vector<int>> assemble(const Grid& blocks) {
 void shiftBlockRows(Grid& blocks,
     const vector<int>& rowShifts) {
     int gridSize = blocks.size();
+
+    #pragma omp parallel for
     for (int r = 0; r < gridSize; ++r) {
         int shift = rowShifts[r] % gridSize;
         if (shift == 0) continue;
@@ -96,10 +101,13 @@ void shiftBlockRows(Grid& blocks,
 void shiftBlockCols(Grid& blocks,
     const vector<int>& colShifts) {
     int gridSize = blocks.size();
+
+    #pragma omp parallel for
     for (int c = 0; c < gridSize; ++c) {
         int shift = colShifts[c] % gridSize;
         if (shift == 0) continue;
         vector<Block> column(gridSize);
+
         for (int r = 0; r < gridSize; ++r)
             column[r] = blocks[r][c];
         rotate(column.begin(),
@@ -173,8 +181,11 @@ void cannonMultiply(const vector<vector<int>>& matrixA,
             Block(blockSize, vector<int>(blockSize, 0))));
 
     // 7) gridSize steps of multiply + rotate
+
+
     for (int step = 0; step < gridSize; ++step) {
         // local multiply-accumulate
+        #pragma omp parallel for collapse(2)
         for (int r = 0; r < gridSize; ++r) {
             for (int c = 0; c < gridSize; ++c) {
                 multiplyAcc(blockGridA[r][c],
@@ -222,8 +233,10 @@ int main() {
                 matrixA[r][c] = rand() % 20;
                 matrixB[r][c] = rand() % 20;
             }
-        cout << "\nMatrix A:\n"; //printMatrix(matrixA);
-        cout << "Matrix B:\n"; //printMatrix(matrixB);
+    #if PRINT_MAT == 1
+        cout << "\nMatrix A:\n"; printMatrix(matrixA);
+        cout << "Matrix B:\n"; printMatrix(matrixB);
+    #endif
     }
     else {
         cout << "\nEnter A (" << matrixSize << " x " << matrixSize << "):\n";
@@ -256,6 +269,9 @@ int main() {
         cout << "Using grid " << nearestRoot << " x " << nearestRoot
             << ", padded block size " << blockSize << ".\n\n";
     }
+
+    omp_set_num_threads(processCount);
+
     auto start = chrono::high_resolution_clock::now();
     cannonMultiply(matrixA, matrixB, matrixC, processCount);
     auto stop = chrono::high_resolution_clock::now();
@@ -263,8 +279,9 @@ int main() {
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
 
     cout << "Duration is " << duration.count() << " milliseconds\n";
-    cout << "Result C = A x B:\n";
-    //printMatrix(matrixC);
-
+    #if PRINT_MAT == 1
+        cout << "Result C = A x B:\n";
+        printMatrix(matrixC);
+    #endif
     return 0;
 }
