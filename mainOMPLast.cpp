@@ -212,8 +212,24 @@ void cannonMultiply(const vector<vector<int>>& matrixA,
         // rotate each row/column by 1 for next step
         fill(rowShifts.begin(), rowShifts.end(), 1);
         fill(colShifts.begin(), colShifts.end(), 1);
-        shiftBlockRows(blockGridA, rowShifts);
-        shiftBlockCols(blockGridB, colShifts);
+        #pragma omp parallel
+        {
+
+            #pragma omp sections
+            {
+
+                #pragma omp section
+                {
+                    shiftBlockRows(blockGridA, rowShifts);
+                }
+
+                #pragma omp section
+                {
+                    shiftBlockCols(blockGridB, colShifts);
+                }
+            }
+
+        }
     }
 
     // 8) Reassemble and trim to original size
