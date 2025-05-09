@@ -172,8 +172,24 @@ void cannonMultiply(const vector<vector<int>>& matrixA,
         rowShifts[i] = i;
         colShifts[i] = i;
     }
-    shiftBlockRows(blockGridA, rowShifts);
-    shiftBlockCols(blockGridB, colShifts);
+    #pragma omp parallel
+    {
+
+        #pragma omp sections
+        {
+
+            #pragma omp section
+            {
+                shiftBlockRows(blockGridA, rowShifts);
+            }
+
+            #pragma omp section
+            {
+                shiftBlockCols(blockGridB, colShifts);
+            }
+        }
+
+    }
 
     // 6) Allocate zeroed C blocks
     Grid blockGridC(gridSize,
